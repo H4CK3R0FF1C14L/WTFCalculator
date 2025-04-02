@@ -1,10 +1,80 @@
-﻿using WTFCalculator.Models;
+﻿using System.Threading.Channels;
+using WTFCalculator.Models;
 using WTFCalculator.Services;
 
 namespace WTFCalculator
 {
     internal class Program
     {
+        public static async Task Main(string[] args)
+        {
+            try
+            {
+                List<Item> items = new List<Item>();
+
+                Console.WriteLine("Number of nomenclature: ");
+                int numberNomenclature = Convert.ToInt32(Console.ReadLine());
+
+                Console.Clear();
+
+                for (int i = 0; i < numberNomenclature; i++)
+                {
+                    Item item = new Item();
+
+                    Console.WriteLine("Enter item name: ");
+                    item.Name = Console.ReadLine();
+
+                    Console.WriteLine("Enter the price of the item: ");
+                    item.Cost = decimal.Parse(Console.ReadLine()!);
+
+                    Console.WriteLine("Enter the maximum quantity of this item: ");
+                    item.Count = Convert.ToInt32(Console.ReadLine());
+
+                    items.Add(item);
+
+                    Console.Clear();
+                }
+
+                Console.WriteLine("Enter the prepayment amount: ");
+                decimal prepayment = decimal.Parse(Console.ReadLine()!);
+
+                Console.Clear();
+
+                Channel<Dictionary<string, int>> channel = Channel.CreateUnbounded<Dictionary<string, int>>
+                (
+                    new UnboundedChannelOptions { SingleReader = true }
+                );
+
+                OptimizedCombinationFinderService finder = new OptimizedCombinationFinderService(items, prepayment, channel.Writer);
+
+
+                using (StreamWriter writer = new StreamWriter("results.txt"))
+                {
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine("GOOD RESULTS: \n\n\n");
+                    writer.WriteLine("GOOD RESULTS: \n\n\n");
+
+                    Task processingTask = Task.Run(async () =>
+                    {
+                        await foreach (Dictionary<string, int> combo in channel.Reader.ReadAllAsync())
+                        {
+                            Console.ForegroundColor = ConsoleColor.DarkGreen;
+                            Console.WriteLine($"Found: {string.Join(", ", combo)}");
+                            writer.WriteLine($"Found: {string.Join(", ", combo)}");
+                        }
+                    });
+
+                    await finder.FindCombinationsAsync();
+                    await processingTask;
+                }
+            }
+            catch (Exception exception)
+            {
+                Console.WriteLine($"FATAL ERROR: {exception.Message}");
+            }
+        }
+
+        /*
         public static void Main(string[] args)
         {
             try
@@ -82,5 +152,6 @@ namespace WTFCalculator
                 Console.WriteLine($"FATAL ERROR: {exception.Message}");
             }
         }
+        */
     }
 }

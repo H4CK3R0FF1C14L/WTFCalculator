@@ -4,13 +4,113 @@ namespace WTFCalculator.Services
 {
     public class CombinationFinderService
     {
+
+        // Knapsack Trash
+        // Uses a huge amount of memory
+        #region Knapsack
+
+        public List<Dictionary<string, int>> FindCombinations(List<Item> items, decimal targetSum)
+        {
+            var dp = new Dictionary<decimal, List<Dictionary<string, int>>>();
+            dp[0m] = new List<Dictionary<string, int>> { new Dictionary<string, int>() };
+
+            foreach (var item in items.OrderByDescending(i => i.Cost))
+            {
+                var newDp = new Dictionary<decimal, List<Dictionary<string, int>>>();
+
+                foreach (var (sum, combinations) in dp)
+                {
+                    for (int q = 0; q <= item.Count!.Value; q++)
+                    {
+                        decimal newSum = sum + q * item.Cost!.Value;
+                        if (newSum > targetSum) break;
+
+                        foreach (var combo in combinations)
+                        {
+                            var newCombo = new Dictionary<string, int>(combo);
+                            if (q > 0) newCombo[item.Name!] = q;
+
+                            if (!newDp.ContainsKey(newSum))
+                                newDp[newSum] = new List<Dictionary<string, int>>();
+
+                            newDp[newSum].Add(newCombo);
+                        }
+                    }
+                }
+
+                foreach (var (sum, combos) in newDp)
+                {
+                    if (!dp.ContainsKey(sum))
+                        dp[sum] = new List<Dictionary<string, int>>();
+
+                    dp[sum].AddRange(combos);
+                }
+            }
+
+            return dp.TryGetValue(targetSum, out var result) ? result : new List<Dictionary<string, int>>();
+        }
+
+        public (List<Dictionary<string, int>> Results, List<Dictionary<string, int>> CloseResults)
+            FindCombinations(List<Item> items, decimal targetSum, decimal tolerance)
+        {
+            var dp = new Dictionary<decimal, List<Dictionary<string, int>>>();
+            dp[0m] = new List<Dictionary<string, int>> { new Dictionary<string, int>() };
+
+            foreach (var item in items.OrderByDescending(i => i.Cost))
+            {
+                var newDp = new Dictionary<decimal, List<Dictionary<string, int>>>();
+
+                foreach (var (sum, combinations) in dp)
+                {
+                    for (int q = 0; q <= item.Count!.Value; q++)
+                    {
+                        decimal newSum = sum + q * item.Cost!.Value;
+                        if (newSum > targetSum + tolerance) continue;
+
+                        foreach (var combo in combinations)
+                        {
+                            var newCombo = new Dictionary<string, int>(combo);
+                            if (q > 0) newCombo[item.Name!] = q;
+
+                            if (!newDp.ContainsKey(newSum))
+                                newDp[newSum] = new List<Dictionary<string, int>>();
+
+                            newDp[newSum].Add(newCombo);
+                        }
+                    }
+                }
+
+                foreach (var (sum, combos) in newDp)
+                {
+                    if (!dp.ContainsKey(sum))
+                        dp[sum] = new List<Dictionary<string, int>>();
+
+                    dp[sum].AddRange(combos);
+                }
+            }
+
+            var exactResults = dp.TryGetValue(targetSum, out var exact) ? exact : new List<Dictionary<string, int>>();
+            var closeResults = dp.Where(kv =>
+                Math.Abs(kv.Key - targetSum) <= tolerance &&
+                kv.Key != targetSum)
+                .SelectMany(kv => kv.Value)
+                .ToList();
+
+            return (exactResults, closeResults);
+        }
+
+        #endregion
+
+
+        #region RecursiveOvershoot
+
         /// <summary>
         /// Finds the combinations.
         /// </summary>
         /// <param name="items">The items.</param>
         /// <param name="targetSum">The target sum.</param>
         /// <returns></returns>
-        public List<Dictionary<string, int>> FindCombinations(List<Item> items, decimal targetSum)
+        /*public List<Dictionary<string, int>> FindCombinations(List<Item> items, decimal targetSum)
         {
             // Sort the goods and remove the extra ones that cost more than the declared amount
             List<Item> validItems = items
@@ -91,6 +191,9 @@ namespace WTFCalculator.Services
 
             return (result, shitResult);
         }
+
+        */
+
 
 
         /// <summary>
@@ -190,5 +293,7 @@ namespace WTFCalculator.Services
                 GenerateCombinations(items, index + 1, newSum, currentQuantities, results, targetSum, shitResults, difference);
             }
         }
+
+        #endregion
     }
 }
