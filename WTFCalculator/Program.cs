@@ -61,11 +61,16 @@ namespace WTFCalculator
 
                 using (StreamWriter writer = new StreamWriter("results.txt"))
                 {
+                    Console.ForegroundColor = ConsoleColor.DarkBlue;
+                    Console.WriteLine("Searching for the right results...");
+
                     Console.ForegroundColor = ConsoleColor.Cyan;
                     Console.WriteLine("GOOD RESULTS: \n\n\n");
                     writer.WriteLine("GOOD RESULTS: \n\n\n");
 
-                    var processingTask = Task.Run(async () =>
+                    Task findCombinationsAsync = finder.FindCombinationsAsync();
+
+                    Task processingTask = Task.Run(async () =>
                     {
                         async Task ProcessChannel(ChannelReader<Dictionary<string, int>> reader,
                                                 ConsoleColor color,
@@ -83,14 +88,14 @@ namespace WTFCalculator
                             }
                         }
 
-                        var mainTask = ProcessChannel(channel.Reader, ConsoleColor.DarkGreen, "GOOD");
-                        var shitTask = ProcessChannel(shitChannel.Reader, ConsoleColor.DarkYellow, "SHIT");
+                        Task mainTask = ProcessChannel(channel.Reader, ConsoleColor.DarkGreen, "GOOD");
+                        Task shitTask = ProcessChannel(shitChannel.Reader, ConsoleColor.DarkYellow, "SHIT");
 
-                        await finder.FindCombinationsAsync();
+                        //await finder.FindCombinationsAsync();
                         await Task.WhenAll(mainTask, shitTask);
                     });
 
-                    await processingTask;
+                    await Task.WhenAll(findCombinationsAsync, processingTask);
                 }
 
                 Console.ForegroundColor = ConsoleColor.White;
