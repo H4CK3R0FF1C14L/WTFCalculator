@@ -12,8 +12,11 @@ namespace WTFCalculator
             {
                 List<Item> items = new List<Item>();
 
-                Console.WriteLine("Number of nomenclature: ");
+                Console.WriteLine("Enter number of nomenclature: ");
                 int numberNomenclature = Convert.ToInt32(Console.ReadLine());
+
+                Console.WriteLine("Enter VAT coefficient (1 by default): ");
+                decimal vatCoefficient = decimal.Parse(Console.ReadLine()!);
 
                 Console.Clear();
 
@@ -25,7 +28,7 @@ namespace WTFCalculator
                     item.Name = Console.ReadLine();
 
                     Console.WriteLine("Enter the price of the item: ");
-                    item.Cost = decimal.Parse(Console.ReadLine()!);
+                    item.Cost = decimal.Parse(Console.ReadLine()!) * vatCoefficient;
 
                     Console.WriteLine("Enter the maximum quantity of this item: ");
                     item.Count = Convert.ToInt32(Console.ReadLine());
