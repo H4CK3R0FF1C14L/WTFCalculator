@@ -41,6 +41,9 @@ namespace WTFCalculator
                 Console.WriteLine("Enter the prepayment amount: ");
                 decimal prepayment = decimal.Parse(Console.ReadLine()!);
 
+                Console.WriteLine("Enter the maximum difference for incorrect results: ");
+                decimal difference = decimal.Parse(Console.ReadLine()!);
+
                 Console.Clear();
 
                 Channel<Dictionary<string, int>> channel = Channel.CreateUnbounded<Dictionary<string, int>>
@@ -48,7 +51,12 @@ namespace WTFCalculator
                     new UnboundedChannelOptions { SingleReader = true }
                 );
 
-                OptimizedCombinationFinderService finder = new OptimizedCombinationFinderService(items, prepayment, channel.Writer);
+                Channel<Dictionary<string, int>> shitChannel = Channel.CreateUnbounded<Dictionary<string, int>>
+                (
+                    new UnboundedChannelOptions { SingleReader = true }
+                );
+
+                OptimizedCombinationFinderService finder = new OptimizedCombinationFinderService(items, prepayment, channel.Writer, shitChannel, difference);
 
 
                 using (StreamWriter writer = new StreamWriter("results.txt"))
@@ -57,19 +65,37 @@ namespace WTFCalculator
                     Console.WriteLine("GOOD RESULTS: \n\n\n");
                     writer.WriteLine("GOOD RESULTS: \n\n\n");
 
-                    Task processingTask = Task.Run(async () =>
+                    var processingTask = Task.Run(async () =>
                     {
-                        await foreach (Dictionary<string, int> combo in channel.Reader.ReadAllAsync())
+                        async Task ProcessChannel(ChannelReader<Dictionary<string, int>> reader,
+                                                ConsoleColor color,
+                                                string prefix)
                         {
-                            Console.ForegroundColor = ConsoleColor.DarkGreen;
-                            Console.WriteLine($"Found: {string.Join(", ", combo)}");
-                            writer.WriteLine($"Found: {string.Join(", ", combo)}");
+                            await foreach (var combo in reader.ReadAllAsync())
+                            {
+                                lock (Console.Out)
+                                {
+                                    Console.ForegroundColor = color;
+                                    Console.WriteLine($"{prefix}: {string.Join(", ", combo)}");
+                                    writer.WriteLine($"{prefix}: {string.Join(", ", combo)}");
+                                    Console.ResetColor();
+                                }
+                            }
                         }
+
+                        var mainTask = ProcessChannel(channel.Reader, ConsoleColor.DarkGreen, "GOOD");
+                        var shitTask = ProcessChannel(shitChannel.Reader, ConsoleColor.DarkYellow, "SHIT");
+
+                        await finder.FindCombinationsAsync();
+                        await Task.WhenAll(mainTask, shitTask);
                     });
 
-                    await finder.FindCombinationsAsync();
                     await processingTask;
                 }
+
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.WriteLine($"\n\nThe operation is completed, press any button to close the program...");
+                Console.ReadKey();
             }
             catch (Exception exception)
             {

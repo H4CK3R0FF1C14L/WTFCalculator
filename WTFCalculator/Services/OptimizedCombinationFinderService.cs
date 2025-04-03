@@ -6,8 +6,10 @@ namespace WTFCalculator.Services
     public class OptimizedCombinationFinderService
     {
         private readonly ChannelWriter<Dictionary<string, int>> _resultsWriter;
+        private readonly ChannelWriter<Dictionary<string, int>>? _shitResultsWriter;
         private readonly List<Item> _items;
         private readonly decimal _targetSum;
+        private readonly decimal _difference;
 
         public OptimizedCombinationFinderService(List<Item> items, decimal targetSum, ChannelWriter<Dictionary<string, int>> resultsWriter)
         {
@@ -17,6 +19,18 @@ namespace WTFCalculator.Services
                 .ToList();
             _targetSum = targetSum;
             _resultsWriter = resultsWriter;
+        }
+
+        public OptimizedCombinationFinderService(List<Item> items, decimal targetSum, ChannelWriter<Dictionary<string, int>> resultsWriter, ChannelWriter<Dictionary<string, int>> shitResultsWriter, decimal difference)
+        {
+            _items = items
+                .Where(item => item.Cost > 0 && item.Count > 0)
+                .OrderByDescending(item => item.Cost)
+                .ToList();
+            _targetSum = targetSum;
+            _resultsWriter = resultsWriter;
+            _shitResultsWriter = shitResultsWriter;
+            _difference = difference;
         }
 
         public async Task FindCombinationsAsync()
@@ -36,6 +50,9 @@ namespace WTFCalculator.Services
                 });
 
             _resultsWriter.Complete();
+
+            if (_shitResultsWriter != null)
+                _shitResultsWriter.Complete();
         }
 
         private IEnumerable<(int Start, int End)> GetInitialRanges()
@@ -88,6 +105,25 @@ namespace WTFCalculator.Services
                     }
                     await _resultsWriter.WriteAsync(result, ct);
                 }
+
+                if (_shitResultsWriter != null)
+                {
+                    Dictionary<string, int> result = new Dictionary<string, int>();
+                    for (int i = 0; i < quantities.Length; i++)
+                    {
+                        if (quantities[i] > 0)
+                        {
+                            result[_items[i].Name!] = quantities[i];
+                        }
+                    }
+
+                    decimal currentDifference = _targetSum - currentSum;
+                    if (currentDifference <= _difference)
+                    {
+                        await _shitResultsWriter.WriteAsync(result, ct);
+                    }
+                }
+
                 return;
             }
 
